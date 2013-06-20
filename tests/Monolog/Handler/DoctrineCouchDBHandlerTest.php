@@ -14,25 +14,21 @@ namespace Monolog\Handler;
 use Monolog\TestCase;
 use Monolog\Logger;
 
-class MongoDBHandlerTest extends TestCase
+class DoctrineCouchDBHandlerTest extends TestCase
 {
-    /**
-     * @expectedException InvalidArgumentException
-     */
-    public function testConstructorShouldThrowExceptionForInvalidMongo()
+    protected function setup()
     {
-        new MongoDBHandler(new \stdClass(), 'DB', 'Collection');
+        if (!class_exists('Doctrine\CouchDB\CouchDBClient')) {
+            $this->markTestSkipped('The "doctrine/couchdb" package is not installed');
+        }
     }
 
     public function testHandle()
     {
-        $mongo = $this->getMock('Mongo', array('selectCollection'));
-        $collection = $this->getMock('stdClass', array('save'));
-
-        $mongo->expects($this->once())
-            ->method('selectCollection')
-            ->with('DB', 'Collection')
-            ->will($this->returnValue($collection));
+        $client = $this->getMockBuilder('Doctrine\\CouchDB\\CouchDBClient')
+            ->setMethods(array('postDocument'))
+            ->disableOriginalConstructor()
+            ->getMock();
 
         $record = $this->getRecord(Logger::WARNING, 'test', array('data' => new \stdClass, 'foo' => 34));
 
@@ -46,18 +42,11 @@ class MongoDBHandlerTest extends TestCase
             'extra' => array(),
         );
 
-        $collection->expects($this->once())
-            ->method('save')
+        $client->expects($this->once())
+            ->method('postDocument')
             ->with($expected);
 
-        $handler = new MongoDBHandler($mongo, 'DB', 'Collection');
+        $handler = new DoctrineCouchDBHandler($client);
         $handler->handle($record);
-    }
-}
-
-if (!class_exists('Mongo')) {
-    class Mongo
-    {
-        public function selectCollection() {}
     }
 }
